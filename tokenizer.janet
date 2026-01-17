@@ -26,6 +26,7 @@
 			"&" :amp
 			"." :dot
 			"," :comma
+			"\n" :nl
 			(do
 				(put vals 0 :op)
 				(case c
@@ -93,7 +94,10 @@
 
 (defn advanceToken [remaining needsTypes prev ] 
 	(if (= remaining "")
-		@[]	
+		(if prev
+			@[prev]
+			@[]
+		)	
 		(do
 			#advnace spaces	
 			(def thischar (string/slice remaining 0 1) )
@@ -146,20 +150,14 @@
 
 #tokenize all argument strings
 (defn tokenize [ args ]
-	(if (empty? args)
-		@[]
-		(array/insert 
-			(tokenize (rest args ) )
-			0
-			(advanceToken (first args) [] false ) 
-		)
-	)
+	(def joined (joinArgs args) )
+	(advanceToken joined [] false ) 
 )
 
 (defn main [& args] 
 	#remove first arg, since this is the name of the program
-	(def tokens (tokenize (rest args)))
-	(destructureLevels tokens 3 print)	
+	(def tokens (tokenize (rest args) ) )
+	(destructureLevels tokens 2 print)	
 	#(case (get args 0)
 	#	"tokenize" (tokenize (array/slice args 1 ) )
 	#	"parseExpr" (parseExpr (array/slice (args 1 ) ) )

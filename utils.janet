@@ -33,3 +33,9 @@
 	)
 )
 
+(defn joinArgs [args]
+	(if (empty? args)
+		""
+		(string (first args) " " (joinArgs (rest args )) )
+	)	
+)
