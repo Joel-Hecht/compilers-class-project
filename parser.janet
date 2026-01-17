@@ -80,7 +80,7 @@
 		)
 	)
 	(if (= (get vals 0) :sym)
-		{:type (get vals 0) }
+		{:type (get vals 1) }
 		{:type (get vals 0) :tok (get vals 1)}
 	)
 )
