@@ -9,6 +9,7 @@
 		t
 	)
 )
+
 (defn charToKeyword [c] 
 	(def vals @[])
 	(put vals 0 :sym)
@@ -71,6 +72,25 @@
 	)
 )
 
+(defn insertMultiCharToken [arr tok]
+	(def newtok
+		{ :type
+			(case (tok :tok)
+				"if" :iff
+				"ifonly" :ifonly
+			  "while" :w
+				"return" :ret
+				"print" :print
+				"this" :th
+				(tok :type)
+			)	
+			:tok (tok :tok) #messy but I'm just gonna leave in the token value even if it is identical to the type
+
+		}
+	)
+	(array/insert arr 0 newtok)	
+)
+
 (defn advanceToken [remaining needsTypes prev ] 
 	(if (= remaining "")
 		@[]	
@@ -83,7 +103,7 @@
 					(def toks (advanceToken newremaining [] false) )
 					(if (empty? needsTypes )
 						toks
-						(array/insert toks 0 prev)	
+						(insertMultiCharToken toks prev)
 					) #if ongoing token
 				) #if whitespace
 				(do
@@ -101,7 +121,7 @@
 							) #defn
 							(if (empty? needsTypes)
 								(getNextRecursion)
-								(array/insert (getNextRecursion) 0 prev) #insert prev in addition to whatever else we are inserting here
+								(insertMultiCharToken (getNextRecursion) prev )
 							)#if no types needed
 						)
 					)	#if in needstypes
