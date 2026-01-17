@@ -1,17 +1,6 @@
 #!/usr/local/bin/janet
 
-
-(defn rest [l] (array/slice l 1 ))
-
-#refactor with match first & rest
-(defn value-in? [val list]
-	(if (empty? list) false
-		(if (= val (first list )) 
-			true
-			(value-in? val (rest list ) )
-		)
-	)
-)
+(use ./utils)
 
 (defn specifyOperators [t]
 	#reinitialize struct, poor practice, blah blah blah whatever
@@ -20,19 +9,6 @@
 		t
 	)
 )
-
-(def charIsNumber 
-	(peg/compile
-		'(range "09")
-	)
-)
-
-(def charIsLetter
-	(peg/compile 
-		'(range "az" "AZ")
-	)
-)
-
 (defn charToKeyword [c] 
 	(def vals @[])
 	(put vals 0 :sym)
@@ -156,15 +132,6 @@
 			(tokenize (rest args ) )
 			0
 			(advanceToken (first args) [] false ) 
-		)
-	)
-)
-
-(defn destructureLevels [ s n f ]
-	(if (= 0 n)
-		(f s)
-		(each i s
-			( destructureLevels i (- n 1) f)
 		)
 	)
 )
