@@ -21,8 +21,16 @@
 	)
 )
 
-(defn extractNumberToken [this after]
-	()	
+(def charIsNumber 
+	(peg/compile
+		'(range "09")
+	)
+)
+
+(def charIsLetter
+	(peg/compile 
+		'(range "az" "AZ")
+	)
 )
 
 (defn charToKeyword [c] 
@@ -49,20 +57,84 @@
 					"-" :-
 					"*" :*
 					"/" :/
-					#(do
-					#	(put vals 0 :num)
-					#	(case c
-					#
-					#
-					#	)
-					#)
-					[:INVALID nil]
+					(do
+						(put vals 0 :num)
+						(if (peg/match charIsNumber c)
+							c
+							(do
+								(if (peg/match charIsLetter c)
+									(do
+										(put vals 0 :id)
+										c
+									)
+									(do
+										(put vals 0 :INVALID)
+										:INVALID
+									)
+								)
+							)
+						)						
+					)
 				)
 			)
 		)
 	)
-	{:type (get vals 0) :tok (get vals 1)}
+	(if (= (get vals 0) :sym)
+		{:type (get vals 0) }
+		{:type (get vals 0) :tok (get vals 1)}
+	)
 )
+
+(defn typesNeededFor [t]
+	(if (= t :num)
+		[:num]
+		(if (= t :id)
+			[:num :id]
+			[]
+		)
+	)
+)
+
+(defn advanceToken [remaining needsTypes prev ] 
+	(if (= remaining "")
+		@[]	
+		(do
+			#advnace spaces	
+			(def thischar (string/slice remaining 0 1) )
+			(def newremaining (string/slice remaining 1) )
+			(if (= thischar " ")
+				(do 
+					(def toks (advanceToken newremaining [] false) )
+					(if (empty? needsTypes )
+						toks
+						(array/insert toks 0 prev)	
+					) #if ongoing token
+				) #if whitespace
+				(do
+					(def tok (charToKeyword thischar ))
+					(if (value-in? (tok :type) needsTypes)
+						(advanceToken newremaining needsTypes {:type (prev :type) :tok (string (prev :tok) (tok :tok)) } )
+						(do
+							(defn getNextRecursion [] 
+								(do
+									(if (or (= (tok :type) :id) (= (tok :type) :num))
+										(advanceToken newremaining (typesNeededFor (tok :type)) tok)
+										(array/insert (advanceToken newremaining [] false) 0 tok)
+									)# if num or id
+								)
+							) #defn
+							(if (empty? needsTypes)
+								(getNextRecursion)
+								(array/insert (getNextRecursion) 0 prev) #insert prev in addition to whatever else we are inserting here
+							)#if no types needed
+						)
+					)	#if in needstypes
+				)
+			) #if space
+		)
+	)	
+)
+
 
 #tokenize a string into an array of tokens
 (defn tokenizeSingleString [s]
@@ -83,7 +155,7 @@
 		(array/insert 
 			(tokenize (rest args ) )
 			0
-			(tokenizeSingleString (first args))
+			(advanceToken (first args) [] false ) 
 		)
 	)
 )
