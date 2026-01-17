@@ -35,6 +35,7 @@
 					"-" :-
 					"*" :*
 					"/" :/
+					"=" :=
 					(do
 						(put vals 0 :num)
 						(if (peg/match charIsNumber c)
