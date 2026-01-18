@@ -39,3 +39,37 @@
 		(string (first args) " " (joinArgs (rest args )) )
 	)	
 )
+
+(def fiber-with-cache
+ @{
+ 	:fiber nil
+	:cached nil
+	:construct (fn [self fiber]
+		(set (self :fiber) fiber)	
+	)
+	:getNext (fn [self] 
+		(if (nil? (self :cached))
+			(resume (self :fiber))
+			(do
+				(def temp (self :cached))
+				(set (self :cached) nil)
+				temp	
+			)
+		)
+	)
+	:peek (fn [self]
+		(when (nil? (self :cached))
+			(set (self :cached) (resume (self :fiber)))
+		)	
+		(self :cached)
+	)
+ }
+)
+
+(defn make-fiber-with-cache [fiber]
+	(def f fiber-with-cache)
+	(:construct f fiber)
+	f
+)
+
+

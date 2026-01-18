@@ -1,4 +1,6 @@
 #!/usr/local/bin/janet
+# parse source args/string into tokens
+# implemented as a generator
 
 (use ./utils)
 
@@ -141,11 +143,16 @@
 )
 
 (defn getNextToken [f]
-	(resume f)
+	(:getNext f)
+)
+
+(defn peekNextToken [f]
+	(:peek f)
 )
 
 (defn make-tokenizer [str]
-	(fiber/new (fn [] (advanceToken str [] false )))
+	(make-fiber-with-cache (fiber/new (fn [] (advanceToken str [] false ))))
+
 )
 
 (defn make-tokenizer-from-args [args]	
@@ -153,10 +160,7 @@
 	(make-tokenizer str)
 )
 
-(defn main [& args] 
-	#remove arg, since that is the name of the program
-	(def t (make-tokenizer-from-args (rest args)))
-
+(defn print-all-tokens [t]
 	(var k {:type :placeholder})
 	(forever 
 		(set k (getNextToken t))
@@ -169,4 +173,10 @@
 			(break)
 		)
 	)
+)
+
+(defn main [& args] 
+	#remove arg, since that is the name of the program
+	(def t (make-tokenizer-from-args (rest args)))
+	(print-all-tokens t)
 )
