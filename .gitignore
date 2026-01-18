@@ -3,3 +3,4 @@ jpm_tree
 build/**
 build
 **.swp
+src/*.tested
