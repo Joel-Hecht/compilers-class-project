@@ -140,70 +140,17 @@
 	)	
 )
 
-
-
-#tokenize all argument strings
-#(defn tokenize [ args ]
-#	(def joined (joinArgs args) )
-#	(advanceToken joined [] false ) 
-#)
-
-(defn dummy [c]
-	(for i 0 c
-		(yield i)
-	"done")
-)
-
-
-
-
-
-#(def tokenizer 
-#	@{
-#		:type "tokenizer"
-#		:initialize 
-#			(fn [self str] (
-#				(print "fsfsd")		
-#				(def fiber (fiber/new (fn [] (dummy 5))))
-#				(put self :fiber
-#					#(fiber/new (fn [] (advanceToken str [] false )))
-#					fiber
-#				)
-#				(print "fsfsd")		
-#				(print "pimpin out")
-#			))
-#		#:initializeFromArgs
-#		#	(fn [self args] (
-#		#		(def str (joinArgs args))
-#		#		(print (string "args " args))
-#		#		(print (string "args " str))
-#		#		(:initialize self str)
-#		#		(print "after")
-#		#	))
-#		:getNext 
-#			(fn [self] (
-#				(print "getting next")
-#				#will hang if nothing left, hence eof
-#				(resume (self :fiber))
-#			))
-#	}	
-#)
-
-#(defn make-tokenizer-from-args [ args]
-#	(def str (joinArgs args))
-#	(var t tokenizer)
-#	(:initialize t str)
-#	t
-#)
-
 (defn getNextToken [f]
 	(resume f)
 )
 
+(defn make-tokenizer [str]
+	(fiber/new (fn [] (advanceToken str [] false )))
+)
+
 (defn make-tokenizer-from-args [args]	
 	(def str (joinArgs args))
-	(def fiber (fiber/new (fn [] (advanceToken str [] false ))))
-	fiber
+	(make-tokenizer str)
 )
 
 (defn main [& args] 
