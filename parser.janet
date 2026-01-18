@@ -68,33 +68,21 @@
 		:lp (do
 					(def lhs (parseExp t))
 					(def op (nextt t))
-					(if (not= (op :type) :op)
-						(wantedGotErr :op (op :type) )
-						(do
-							(def rhs (parseExp t))
-							(def rp (nextt t))
-							(if (not= (rp :type) :rp)
-								(wantedGotErr :rp (rp :type))
-								(binop lhs (op :tok) rhs)
-							) #~if bad right paren
-						) #~do
-					) #~if bad op
-				) #~do
+					(assertType op :op)
+					(def rhs (parseExp t))
+					(def rp (nextt t))
+					(assertType rp :rp)
+					(binop lhs (op :tok) rhs)
+				) 
 		:amp	(do
 						(def base (parseExp t))
 						(def dot (nextt t))
-						(if (not= (dot :type) :dot)
-							(wantedGotErr :dot (dot :type))
-							(do
-								(def fname (nextt t))
-								(if (not= (fname :type) :id)
-									(wantedGotErr :id (fname :type))
-									(fieldRead base (fname :tok))
-								)
-							)
-						)
-					)	
-		:caret 	(do #this guy is our method call
+						(assertType dot :dot)
+						(def fname (nextt t))
+						(assertType fname :id "valid field name")
+						(fieldRead base (fname :tok))
+					)
+:caret 	(do #this guy is our method call
 							(def mbase (parseExp t))
 							(def mdot (nextt t))
 							(assertType mdot :dot)
