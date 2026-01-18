@@ -118,5 +118,6 @@
 
 (defn main [& args] 
 	(def t (tokenizer/make-tokenizer-from-args (rest args)))
+	#currently only parses first symbol
 	(pp (parseExp t))
 )
