@@ -4,6 +4,7 @@
 (import ./tokenizer)
 (use ./utils)
 
+
 (defn assertType [x exp &opt specifier]
 	(var errexp specifier)
 	(if (nil? errexp)
@@ -48,11 +49,11 @@
 	{:type :methodCall :base base :methodName methodname :args args}	
 )
 (defn fieldRead [base field]
-	(:type :fieldRead :base base :field field
-	)
+	{:type :fieldRead :base base :field field
+	}
 )
 (defn classRef [name]
-	(:type :classRef :classname name)
+	{:type :classRef :classname name}
 )
 
 #where t is a tokenizer object
@@ -82,7 +83,7 @@
 						(assertType fname :id "valid field name")
 						(fieldRead base (fname :tok))
 					)
-:caret 	(do #this guy is our method call
+		:caret 	(do #this guy is our method call
 							(def mbase (parseExp t))
 							(def mdot (nextt t))
 							(assertType mdot :dot)
@@ -117,5 +118,5 @@
 
 (defn main [& args] 
 	(def t (tokenizer/make-tokenizer-from-args (rest args)))
-	(parseExp t)
+	(pp (parseExp t))
 )
