@@ -72,12 +72,7 @@
 	f
 )
 
-(defn errorAndExit [msg]
-	(print (string "comp: " msg) )
-	(os/exit 1)
-)	
-
 (defn wantedGotErr [exp act]
-	(errorAndExit (string "Expected " exp " but found " act " instead"))
+	(error (string "Expected " exp " but found " act " instead"))
 )
 

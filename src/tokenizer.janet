@@ -200,4 +200,10 @@
 (test (make-get-all "123") @[{:tok "123" :type :num} {:type :eof}])
 (test (make-get-all "args ") @[{:tok "args" :type :id} {:type :eof}])
 (test (make-get-all "testu") @[{:tok "testu" :type :id} {:type :eof}])
-
+(test (make-get-all "sdf,(123)")
+  @[{:tok "sdf" :type :id}
+    {:type :comma}
+    {:type :lp}
+    {:tok "123" :type :num}
+    {:type :rp}
+    {:type :eof}])

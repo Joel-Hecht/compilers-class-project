@@ -1,9 +1,10 @@
 #!/usr/local/bin/janet
 # Parse a tokenized string into an AST
 
+(use judge)
+
 (import ./tokenizer)
 (use ./utils)
-
 
 (defn assertType [x exp &opt specifier]
 	(var errexp specifier)
@@ -62,7 +63,7 @@
 	(def z (nextt t))
 	(def tok (z :tok))
 	(case (z :type)
-		:eof (errorAndExit "parser got eof")
+		:eof (error "parser got eof")
 		:this (thisExpr)
 		:num (constant tok)
 		:id (variable tok)
@@ -98,8 +99,10 @@
 										#add to args
 										(array/push args (parseExp t))
 										#throw away comma
-										(when (= ((peekt t) :type) :comma)
+										(if (= ((peekt t) :type) :comma)
 											(nextt t)
+											#if its not a comma, it had better be a rp
+											(assertType (peekt t) :rp)
 										)
 									) #~do
 									(break)
@@ -112,8 +115,12 @@
 					(assertType cname :id "valid class name")
 					(classRef (cname :tok))
 				)
-		(errorAndExit (string "Token " (z :type) " is not part of a valid expression"))
+		(error (string "Token " (z :type) " is not part of a valid expression"))
 	)	
+)
+
+(defn parseString [s]
+	(parseExp (tokenizer/make-tokenizer s))
 )
 
 (defn main [& args] 
@@ -121,3 +128,103 @@
 	#currently only parses first symbol
 	(pp (parseExp t))
 )
+
+(test-error (parseString "") "parser got eof")
+(test (parseString "a+b") {:name "a" :type :variable}) #should probabyl error but I don't have that behavior yet.As of right now it should just parse to a variable
+(test (parseString "(a+b)")
+  {:lhs {:name "a" :type :variable}
+   :op :+
+   :rhs {:name "b" :type :variable}
+   :type :binop})
+(test (parseString "((a+b) * c)")
+  {:lhs {:lhs {:name "a" :type :variable}
+         :op :+
+         :rhs {:name "b" :type :variable}
+         :type :binop}
+   :op :*
+   :rhs {:name "c" :type :variable}
+   :type :binop})
+(test (parseString "((a+b) * (c - b))")
+  {:lhs {:lhs {:name "a" :type :variable}
+         :op :+
+         :rhs {:name "b" :type :variable}
+         :type :binop}
+   :op :*
+   :rhs {:lhs {:name "c" :type :variable}
+         :op :-
+         :rhs {:name "b" :type :variable}
+         :type :binop}
+   :type :binop})
+(test-error (parseString "(a + b") "Expected rp but found eof instead")
+(test (parseString "a") {:name "a" :type :variable})
+(test (parseString "&(a * b).c")
+  {:base {:lhs {:name "a" :type :variable}
+          :op :*
+          :rhs {:name "b" :type :variable}
+          :type :binop}
+   :field "c"
+   :type :fieldRead})
+(test (parseString "&a.c")
+  {:base {:name "a" :type :variable}
+   :field "c"
+   :type :fieldRead})
+(test-error (parseString "&.c") "Token dot is not part of a valid expression")
+(test-error (parseString "&(a+c)") "Expected dot but found eof instead")
+(test-error (parseString "&a^c") "Expected dot but found caret instead")
+(test (parseString "@c") {:classname "c" :type :classRef})
+(test-error (parseString "@4") "Expected valid class name but found num instead")
+(test-error (parseString "@(a + b)") "Expected valid class name but found lp instead")
+(test (parseString "^(a / b).sd(&(p*c).xr)")
+  {:args @[{:base {:lhs {:name "p" :type :variable}
+                   :op :*
+                   :rhs {:name "c" :type :variable}
+                   :type :binop}
+            :field "xr"
+            :type :fieldRead}]
+   :base {:lhs {:name "a" :type :variable}
+          :op :/
+          :rhs {:name "b" :type :variable}
+          :type :binop}
+   :methodName "sd"
+   :type :methodCall})
+(test-error (parseString "^(a / b)sd(&(p*c).xr)") "Token rp is not part of a valid expression")
+(test (parseString "^(a / b).sd()")
+  {:args @[]
+   :base {:lhs {:name "a" :type :variable}
+          :op :/
+          :rhs {:name "b" :type :variable}
+          :type :binop}
+   :methodName "sd"
+   :type :methodCall})
+(test-error (parseString "^(a / b).sd((p*c).xr)") "Token rp is not part of a valid expression")
+(test (parseString "^(a / b).sd()&(p*c).xr")
+  {:args @[]
+   :base {:lhs {:name "a" :type :variable}
+          :op :/
+          :rhs {:name "b" :type :variable}
+          :type :binop}
+   :methodName "sd"
+   :type :methodCall}) #shouln't error because it reaches the end of the expression - maybe we change this later
+(test-error (parseString "^(a / b).sd()&(p*c).xr") "Token rp is not part of a valid expression")
+(test-error (parseString "^(a / b).sd&xr") "Expected lp but found amp instead")
+(test-error (parseString "^(a / b).sd(a + b)") "Expected rp but found op instead") # should require nested parens
+(test-error (parseString "^(a / b).sd(&(p*c).xr(a + b))") "Token op is not part of a valid expression") #no comma
+(test (parseString "^(a / b).sd(&(p*c).xr,a,(a + b) )")
+  {:args @[{:base {:lhs {:name "p" :type :variable}
+                   :op :*
+                   :rhs {:name "c" :type :variable}
+                   :type :binop}
+            :field "xr"
+            :type :fieldRead}
+           {:name "a" :type :variable}
+           {:lhs {:name "a" :type :variable}
+            :op :+
+            :rhs {:name "b" :type :variable}
+            :type :binop}]
+   :base {:lhs {:name "a" :type :variable}
+          :op :/
+          :rhs {:name "b" :type :variable}
+          :type :binop}
+   :methodName "sd"
+   :type :methodCall})
+(test-error (parseString "^a.df(") "Token rp is not part of a valid expression")
