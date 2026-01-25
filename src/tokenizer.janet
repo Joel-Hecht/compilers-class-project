@@ -24,6 +24,8 @@
 			"&" :amp
 			"." :dot
 			"," :comma
+			"_" :underscore
+			"=" :=
 			"\n" :nl
 			(do
 				(put vals 0 :op)
@@ -33,7 +35,6 @@
 					"-" :-
 					"*" :*
 					"/" :/
-					"=" :=
 					(do
 						(put vals 0 :num)
 						(if (peg/match charIsNumber c)
@@ -78,9 +79,10 @@
 			(case (tok :tok)
 				"if" :iff
 				"ifonly" :ifonly
-			  "while" :w
+			  "while" :while
 				"return" :ret
 				"print" :print
+				"else" :else
 				"this" :th
 				(tok :type)
 			)	

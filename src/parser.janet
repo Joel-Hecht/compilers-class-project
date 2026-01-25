@@ -16,15 +16,6 @@
 	)
 )
 
-(defn print-parsed-internal [p s]
-	(def s-next (string s "\t"))
-
-)
-
-(defn print-parsed [p]
-	(print-parsed-internal p "")
-)
-
 (defn nextt [t]
 	(tokenizer/getNextToken t)
 )
@@ -72,8 +63,7 @@
 					(def op (nextt t))
 					(assertType op :op)
 					(def rhs (parseExp t))
-					(def rp (nextt t))
-					(assertType rp :rp)
+					(assertType (nextt t) :rp)
 					(binop lhs (op :tok) rhs)
 				) 
 		:amp	(do
@@ -86,12 +76,10 @@
 					)
 		:caret 	(do #this guy is our method call
 							(def mbase (parseExp t))
-							(def mdot (nextt t))
-							(assertType mdot :dot)
+							(assertType (nextt t) :dot)
 							(def mname (nextt t))	
 							(assertType mname :id "method")
-							(def lp (nextt t))
-							(assertType lp :lp)
+							(assertType (nextt t) :lp)
 							(def args @[])
 							(forever
 								(if (not= ((peekt t) :type) :rp)
@@ -108,6 +96,7 @@
 									(break)
 								) #~if
 							) #~forever
+							(assertType (nextt t) :rp)
 							(methodCall mbase (mname :tok) args)	
 						)
 		:at	(do
@@ -120,7 +109,8 @@
 )
 
 (defn parseOnce [s]
-	(parseExp (tokenizer/make-tokenizer s))
+	(def l [s])
+	(parseExp (tokenizer/make-tokenizer-from-args l))
 )
 
 (defn parseMultiple [s]
@@ -199,7 +189,7 @@
           :type :binop}
    :methodName "sd"
    :type :methodCall})
-(test-error (parseOnce "^(a / b)sd(&(p*c).xr)") "Token rp is not part of a valid expression")
+(test-error (parseOnce "^(a / b)sd(&(p*c).xr)") "Expected dot but found id instead")
 (test (parseOnce "^(a / b).sd()")
   {:args @[]
    :base {:lhs {:name "a" :type :variable}
@@ -208,19 +198,9 @@
           :type :binop}
    :methodName "sd"
    :type :methodCall})
-(test-error (parseOnce "^(a / b).sd((p*c).xr)") "Token rp is not part of a valid expression")
-(test (parseOnce "^(a / b).sd()&(p*c).xr")
-  {:args @[]
-   :base {:lhs {:name "a" :type :variable}
-          :op :/
-          :rhs {:name "b" :type :variable}
-          :type :binop}
-   :methodName "sd"
-   :type :methodCall}) #shouln't error because it reaches the end of the expression - maybe we change this later
-(test-error (parseOnce "^(a / b).sd()&(p*c).xr") "Token rp is not part of a valid expression")
+(test-error (parseOnce "^(a / b).sd((p*c).xr)") "Expected rp but found dot instead")
 (test-error (parseOnce "^(a / b).sd&xr") "Expected lp but found amp instead")
 (test-error (parseOnce "^(a / b).sd(a + b)") "Expected rp but found op instead") # should require nested parens
-(test-error (parseOnce "^(a / b).sd(&(p*c).xr(a + b))") "Token op is not part of a valid expression") #no comma
 (test (parseOnce "^(a / b).sd(&(p*c).xr,a,(a + b) )")
   {:args @[{:base {:lhs {:name "p" :type :variable}
                    :op :*
@@ -239,4 +219,6 @@
           :type :binop}
    :methodName "sd"
    :type :methodCall})
-(test-error (parseOnce "^a.df(") "Token rp is not part of a valid expression")
+(test-error (parseOnce "^a.df(") "parser got eof")
+(test-error (parseOnce "^(a / b).sd(&(p*c).xr(a + b))") "Expected rp but found lp instead")
+#(test (parseOnce "^(a / b).sd()&(p*c).xr") )
