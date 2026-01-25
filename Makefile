@@ -10,7 +10,7 @@ all: $(SRC)
 .PHONY: test
 test: $(SRC) $(TEST)
 	jpm -l test
-	./jpm_tree/bin/judge
+	./jpm_tree/bin/judge -v
 
 # Only use if you are adding new tests, or if a test has failed and you need to re-make the tests
 .PHONY: judge
