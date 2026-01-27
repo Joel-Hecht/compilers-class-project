@@ -68,20 +68,7 @@
 							(def lp (nextt t))
 							(assertType lp :lp)
 							(def args @[])
-							(forever
-								(if (not= ((peekt t) :type) :rp)
-									(do
-										#add to args
-										(array/push args (parseExp t))
-										(if (peekcheck t :comma)
-											(nextt t) #throw away comma
-											#if its not a comma, it had better be a rp
-											(assertType (peekt t) :rp)
-										)
-									) #~do
-									(break)
-								) #~if
-							) #~forever
+							(def args (parseCommaList t :rp parseExp))
 							(assertType (nextt t) :rp )
 							(methodCall mbase (mname :tok) args)	
 						)
