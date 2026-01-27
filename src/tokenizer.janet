@@ -17,6 +17,8 @@
 			")" :rp
 			"{" :lb
 			"}" :rb
+			"[" :lsb
+			"]" :rsb
 			":" :colon
 			"!" :not
 			"@" :at
