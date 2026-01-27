@@ -107,7 +107,7 @@
 			#advnace spaces	
 			(def thischar (string/slice remaining 0 1) )
 			(def newremaining (string/slice remaining 1) )
-			(if (= thischar " ")
+			(if (or (= thischar " ") (= thischar "\t"))
 				(do 
 					(when (not (empty? needsTypes ))
 						(insertMultiCharToken prev )
@@ -189,6 +189,11 @@
 # test that tokenizer is identifying tokens correctly
 (test (make-get-all "") @[{:type :eof}])
 (test (make-get-all " ") @[{:type :eof}])
+
+#test tabs
+(test (make-get-all "\t") @[{:type :eof}])
+(test (make-get-all "	") @[{:type :eof}])
+
 (test (make-get-all "(\n") @[{:type :lp} {:type :nl} {:type :eof}])
 (test (make-get-all "a+b")
   @[{:tok "a" :type :id}

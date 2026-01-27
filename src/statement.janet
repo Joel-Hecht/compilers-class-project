@@ -283,3 +283,21 @@ c = c}`)
 #x = b 
 #c = c
 #}`))
+
+
+#test with tabs
+(test (parseOnce 
+`ifonly &e.f: {
+	x =b 
+	c = c
+}`)
+  {:body @[{:type :assignment
+            :value {:name "b" :type :variable}
+            :var "x"}
+           {:type :assignment
+            :value {:name "c" :type :variable}
+            :var "c"}]
+   :cond {:base {:name "e" :type :variable}
+          :field "f"
+          :type :fieldRead}
+   :type :ifonly})
