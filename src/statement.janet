@@ -11,10 +11,6 @@
 	(expr/parseExp t)
 )
 
-(defn newline [t]
-	(assertType (nextt t) :nl)
-)
-
 #expects to start right before the left bracket
 #ends after consuming closing bracket - does NOT consume the newline
 #needs statementParser to be the parseStatement function
@@ -23,18 +19,16 @@
 	(var gotStatement false)
 	(def body @[])
 	(assertType (nextt t) :lb)
-	(forever 
-		(newline t)
-		(when (peekcheck t :rb)
-			(when (not gotStatement)
-				(error "Expected at least one statement before rb")
+
+	(def body 
+		(parseSeveralStatements t statementParser 
+			(fn [tok] #takes in token
+				#return true if we want to terminate, i.e. if the peeked token is an }
+				(= (tok :type) :rb)
 			)
-			(nextt t) #consume rb
-			(break)
-		)
-		(array/push body (statementParser t) )
-		(set gotStatement true)
+		) 
 	)
+	(assertType (nextt t) :rb) #consume rb, was checked in parseSeveral
 	body
 )
 

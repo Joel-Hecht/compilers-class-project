@@ -25,6 +25,9 @@
 	)
 )
 
+#comma list, terminating when we get token @term instead of comma, and
+#adding parseTermFunction t to @return every time we pass a comma
+#DOES NOT ACTUAL CONSUME TOKEN of type term
 (defn parseCommaList [t term parseTermFunction]
 	(def l @[])	
 	(forever
@@ -42,4 +45,29 @@
 		) #~if
 	) #~forever
 	l
+)
+
+(defn newline [t]
+	(assertType (nextt t) :nl)
+)
+
+#termfunction will run on (peekt t), if it is true we will TERMINATE
+#statementparser param is to avoid circular dependancy becuase I am really lazy adn am not gonna do metaprogramming
+(defn parseSeveralStatements [t statementParser term-function]
+	(var gotStatement false)
+	(def body @[])
+	#(assertType (nextt t) :lb)
+	(forever 
+		(newline t)
+		(when (term-function (peekt t))#(peekcheck t term)
+			(when (not gotStatement)
+				(error "Expected at least one statement before rb")
+			)
+			#(nextt t) #consume terminator 
+			(break)
+		)
+		(array/push body (statementParser t) )
+		(set gotStatement true)
+	)
+	body
 )
