@@ -28,6 +28,11 @@
 			)
 		) 
 	)
+	
+	(when (empty? body)
+		(error "Error: Expected at least 1 statement in conditional")
+	)
+
 	(assertType (nextt t) :rb) #consume rb, was checked in parseSeveral
 	body
 )
@@ -228,7 +233,7 @@ x = r
 (test-error (parseOnce `if (a + b): {
 } else {
 }`)
-  "Expected at least one statement before rb")
+  "Error: Expected at least 1 statement in conditional")
 (test-error (parseOnce `if (a + b): {
 } `)
   "Expected a statement, but instead got token rb")

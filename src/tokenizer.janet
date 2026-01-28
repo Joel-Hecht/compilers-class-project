@@ -150,6 +150,14 @@
 	(:peek f)
 )
 
+(defn flushTokens [t]
+	(:flush t 
+		(fn [x]
+			(= (x :type) :eof)
+		)
+	)	
+)
+
 (defn make-tokenizer [str]
 	(make-fiber-with-cache (fiber/new (fn [] (advanceToken str [] false ))))
 

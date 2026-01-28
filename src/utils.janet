@@ -63,6 +63,12 @@
 		)	
 		(self :cached)
 	)
+
+	:flush
+	(fn [self endCondition]
+		#loop until a specified "end of generator" function is made
+		(while (not (endCondition (:getNext self ))))
+	)
  }
 )
 
