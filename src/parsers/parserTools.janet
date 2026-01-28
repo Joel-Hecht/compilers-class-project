@@ -1,7 +1,7 @@
 #!/usr/local/bin/janet
 
-(use ./utils)
-(import ./tokenizer)
+(use ../utils)
+(import ../tokenizer)
 
 (defn nextt [t]
 	(tokenizer/getNextToken t)

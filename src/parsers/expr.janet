@@ -3,8 +3,8 @@
 
 (use judge)
 
-(import ./tokenizer)
-(use ./utils)
+(import ../tokenizer)
+(use ../utils)
 (use ./parserTools)
 
 #expression 'class' definitions

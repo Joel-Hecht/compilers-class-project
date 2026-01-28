@@ -2,10 +2,10 @@
 
 (use judge)
 
-(import ./tokenizer)
+(import ../tokenizer)
 (import ./expr)
 (use ./parserTools)
-(use ./utils)
+(use ../utils)
 
 (defn parseExp [t]
 	(expr/parseExp t)

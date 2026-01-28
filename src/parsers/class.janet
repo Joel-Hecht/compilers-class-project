@@ -2,10 +2,10 @@
 
 (use judge)
 
-(import ./tokenizer)
+(import ../tokenizer)
 (import ./statement)
 (use ./parserTools)
-(use ./utils)
+(use ../utils)
 
 (defn graceful-checkIDName [tok name]
 	(var out false)

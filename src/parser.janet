@@ -2,8 +2,13 @@
 
 (use judge)
 
+(import ./parsers/statement)
+(import ./parsers/expr)
+(import ./parsers/class)
+#(use ./parsers)
 (import ./tokenizer)
-(import ./expr)
+
+#(use ./parser/parserTools)
 (use ./utils)
 
 
