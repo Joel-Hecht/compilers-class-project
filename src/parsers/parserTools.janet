@@ -33,7 +33,6 @@
 	)
 )
 
-
 (defn assertType [x exp &opt specifier]
 	(var errexp specifier)
 	(if (nil? errexp)
@@ -44,6 +43,31 @@
 	)
 )
 
+(defn graceful-checkIDName [tok name]
+	(var out false)
+	(when (= (tok :type) :id)
+		(when (= (tok :tok) name)
+			(set out true)
+		)
+	)
+	out
+)
+
+(defn checkNextID [t name]
+	(def tok (nextt t))
+	(assertType tok :id (string "'" name "' keyword"))
+	(when (not= (tok :tok) name)
+		(flusherror t (string "Error: Unexpected identifier '" (tok :tok) "'. expected '" name "'"  ) )
+	)
+)
+
+#takes in a tokenizer
+(defn getIDName [t]
+	(def tok (nextt t))
+	(assertType tok :id)
+	(tok :tok)
+)
+
 
 (defn newline [t]
 	(assertType (nextt t) :nl)
@@ -51,12 +75,16 @@
 
 #termfunction will run on (peekt t), if it is true we will TERMINATE
 #statementparser param is to avoid circular dependancy becuase I am really lazy adn am not gonna do metaprogramming
-(defn parseSeveralStatements [t statementParser term-function]
+(defn parseSeveralStatements [t statementParser term-function &opt eofOkay? ]
 	#(var gotStatement false)
 	(def body @[])
 	#(assertType (nextt t) :lb)
 	(forever 
-		(newline t)
+		#exit if we get eof instead of newline, if it has been decreed that this is allowed
+		(if (and eofOkay? (peekcheck t :eof))
+			(break)
+			(newline t)
+		)
 		(when (term-function (peekt t))#(peekcheck t term)
 			#(when (not gotStatement)
 			#	(error "Expected at least one statement before terminator")
@@ -73,13 +101,13 @@
 #comma list, terminating when we get token @term instead of comma, and
 #adding parseTermFunction t to @return every time we pass a comma
 #DOES NOT ACTUAL CONSUME TOKEN of type term
-(defn parseCommaList [t term parseTermFunction]
+(defn parseCommaList [t term parseItemFunction]
 	(def l @[])	
 	(forever
 		(if (not= ((peekt t) :type) term)
 			(do
 				#add to args
-				(array/push l (parseTermFunction t))
+				(array/push l (parseItemFunction t))
 				(if (peekcheck t :comma)
 					(do
 						(nextt t) #throw away comma

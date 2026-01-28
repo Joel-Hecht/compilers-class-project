@@ -306,3 +306,12 @@ c = c}`)
           :field "f"
           :type :fieldRead}
    :type :ifonly})
+
+
+
+#check that we still error on eof
+(test-error (parseOnce 
+`ifonly &e.f: {
+	x =b 
+	c = c`)
+  "Expected nl but found eof instead")

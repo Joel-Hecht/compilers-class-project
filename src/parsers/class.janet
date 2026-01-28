@@ -7,32 +7,6 @@
 (use ./parserTools)
 (use ../utils)
 
-(defn graceful-checkIDName [tok name]
-	(var out false)
-	(when (= (tok :type) :id)
-		(when (= (tok :tok) name)
-			(set out true)
-		)
-	)
-	out
-)
-
-(defn checkNextID [t name]
-	(def tok (nextt t))
-	(assertType tok :id (string "'" name "' keyword"))
-	(when (not= (tok :tok) name)
-		(flusherror t (string "Error: Unexpected identifier '" (tok :tok) "'. expected '" name "'"  ) )
-	)
-)
-
-#takes in a tokenizer
-(defn getIDName [t]
-	(def tok (nextt t))
-	(assertType tok :id)
-	(tok :tok)
-)
-
-
 #should be metaprogrammed but im lazy
 (defn new-method [args locals body]
 	{:type :method :args args :locals locals :body body}
@@ -41,7 +15,6 @@
 (defn new-class [name fields methods]
 	{:type :class :name name :fields fields :methods methods}
 )
-
 
 #parse a class, or, if there is no class, return false
 (defn parseClass [t]
@@ -246,7 +219,34 @@
 )
   "Expected nl but found eof instead")
 
-
+#one arg okay
+(test (parseOnce 
+`class FOO [
+	fields l
+	method m(a) with locals x:
+		a = (q+r)
+		r = ^z.s(b,c)
+]`
+)
+  {:fields @["l"]
+   :methods @{"m" {:args @["a"]
+                   :body @[{:type :assignment
+                            :value {:lhs {:name "q" :type :variable}
+                                    :op :+
+                                    :rhs {:name "r" :type :variable}
+                                    :type :binop}
+                            :var "a"}
+                           {:type :assignment
+                            :value {:args @[{:name "b" :type :variable}
+                                            {:name "c" :type :variable}]
+                                    :base {:name "z" :type :variable}
+                                    :methodName "s"
+                                    :type :methodCall}
+                            :var "r"}]
+                   :locals @["x"]
+                   :type :method}}
+   :name "FOO"
+   :type :class})
 
 #check no args okay
 (test (parseOnce 

@@ -40,6 +40,10 @@
 	)	
 )
 
+# because of the way fibers work ... this class is somehow a singleton
+# thats fine i dont even care
+# this causes massive issues with judge because, even though only one instance of this class exists in the program as it would run generally, judge is try/accepting and then trying to make a new class
+# and then of course this goes sour becuase it is still using the old class.  And so it instantly feeds unexpected input into whatever it is making and everyone dies
 (def fiber-with-cache
  @{
  	:fiber nil
