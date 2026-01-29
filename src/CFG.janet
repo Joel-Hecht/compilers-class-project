@@ -180,3 +180,118 @@ main with x, y, z:
      :field "p"
      :obj {:name 1 :temp true}
      :type :fieldSet}])
+
+
+(test (cfgFromString 
+`
+main with x, y, z:
+!a.f = (a + b)
+`)
+  @[{:expand "<function 0x1>"
+     :expr {:atomic false
+            :expand "<function 0x2>"
+            :lhs {:atomic true
+                  :expand @ident
+                  :name "a"
+                  :type :variable}
+            :op :+
+            :rhs {:atomic true
+                  :expand @ident
+                  :name "b"
+                  :type :variable}
+            :type :binop}
+     :field "f"
+     :obj {:atomic true
+           :expand @ident
+           :name "a"
+           :type :variable}
+     :type :fieldSet}])
+
+
+
+(test (cfgFromString 
+` 
+main with x:
+x = (1 + 2)
+_ = &(x + a).f
+`
+)
+  @[{:expand "<function 0x1>"
+     :expr {:atomic false
+            :expand "<function 0x2>"
+            :lhs {:atomic true
+                  :expand @ident
+                  :type :constant
+                  :value "1"}
+            :op :+
+            :rhs {:atomic true
+                  :expand @ident
+                  :type :constant
+                  :value "2"}
+            :type :binop}
+     :type :assignment
+     :var {:name "x" :temp false}}
+    {:expand "<function 0x3>"
+     :expr {:atomic false
+            :expand "<function 0x4>"
+            :lhs {:atomic true
+                  :expand @ident
+                  :name "x"
+                  :type :variable}
+            :op :+
+            :rhs {:atomic true
+                  :expand @ident
+                  :name "a"
+                  :type :variable}
+            :type :binop}
+     :type :assignment
+     :var {:name 1 :temp true}}
+    {:expand "<function 0x5>"
+     :expr {:atomic false
+            :base {:atomic true
+                   :expand @ident
+                   :num 1
+                   :type :temp}
+            :expand "<function 0x6>"
+            :field "f"
+            :type :fieldRead}
+     :type :assignment
+     :var {:name "0" :temp true}}])
+
+
+(test (cfgFromString
+`
+main with x:
+return x
+`
+)
+  @[{:expand "<function 0x1>"
+     :expr {:atomic true
+            :expand @ident
+            :name "x"
+            :type :variable}
+     :type :return}])
+(test (cfgFromString
+`
+main with x:
+return (1 + 2)
+`
+)
+  @[{:expand "<function 0x1>"
+     :expr {:atomic false
+            :expand "<function 0x2>"
+            :lhs {:atomic true
+                  :expand @ident
+                  :type :constant
+                  :value "1"}
+            :op :+
+            :rhs {:atomic true
+                  :expand @ident
+                  :type :constant
+                  :value "2"}
+            :type :binop}
+     :type :assignment
+     :var 1}
+    {:expand "<function 0x3>"
+     :expr {:name 1 :temp true}
+     :type :return}])

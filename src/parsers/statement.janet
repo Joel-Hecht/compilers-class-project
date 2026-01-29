@@ -76,9 +76,10 @@
 	{:type :run :expr e
 
 		:expand (fn [this tempNumber]
-			(def l (getTempList this tempNumber assignment))	
+			(def l (getTempList (this :expr) tempNumber assignment))	
 			(array/push l
-				(assignment (realvar (this :var)) (array/pop l))
+				#run with temp variable 0, which is reserved for these no-assignment runs
+				(assignment (tempvar "0" ) (array/pop l))
 			)
 			
 			l	
@@ -86,11 +87,32 @@
 	}
 )
 (defn ret [e]
-	{ :type :return :expr e }
+	{ :type :return :expr e 
+		:expand (fn [this tempNumber]
+			(def l (getTempList (this :expr) tempNumber assignment true))	
+			(array/push l
+				#run with temp variable 0, which is reserved for these no-assignment runs
+				(ret (array/pop l))
+			)
+			
+			l	
+		)
+	}
 )
 (defn pr [e]
-	{:type :print :expr e}
+	{:type :print :expr e
+		:expand (fn [this tempNumber]
+			(def l (getTempList (this :expr) tempNumber assignment true))	
+			(array/push l
+				#run with temp variable 0, which is reserved for these no-assignment runs
+				(pr (array/pop l))
+			)
+			
+			l	
+		)
+	}
 )
+
 (defn ifelse [condition ifbody elsebody]
 	{:type :ifelse :cond condition :if ifbody :else elsebody}
 )
