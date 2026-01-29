@@ -7,29 +7,86 @@
 (use ../utils)
 (use ./parserTools)
 
+(defn tempVariable [number]
+	{:type :temp
+	:atomic true
+	:num number}
+)
+
+(defn expandIfNotAtomic [exp temps tempNumber]
+	(if (exp :atomic )
+		exp
+		(do
+			(array/push temps (:expand exp temps tempNumber))
+			(tempVariable (ref+ tempNumber))
+		)
+	)	
+
+)
+
+
 #expression 'class' definitions
 (defn thisExpr []
-	{:type :thisExpr }
+	{:type :thisExpr
+		:atomic true
+	}
 )
 (defn constant [num] 
-	{ :type :constant :value num }
+	{ :type :constant :value num 
+		:atomic true
+	}
 )
 (defn variable [name]
-	{ :type :variable :name name}
+	{ :type :variable :name name
+		:atomic true
+	}
 )
 (defn binop [lhs op rhs]
-	{:type :binop :lhs lhs :op op :rhs rhs}
+	{:type :binop :lhs lhs :op op :rhs rhs
+		:atomic false
+		:expand (fn [this temps tempNumber]
+			(binop 
+				(expandIfNotAtomic (this :lhs) temps tempNumber)
+				(this :op)
+				(expandIfNotAtomic (this :rhs) temps tempNumber)
+			)
+		)
+	}
 )
 #base : expression, methodname : str, args : array
 (defn methodCall [base methodname args]
-	{:type :methodCall :base base :methodName methodname :args args}	
+	{:type :methodCall :base base :methodName methodname :args args
+		:atomic false
+		:expand (fn [this temps tempNumber]
+			(def newargs @[])
+			(each a (this :args) 
+				(array/push newargs (expandIfNotAtomic a temps tempNumber) )
+			)
+			(methodCall 
+				(expandIfNotAtomic (this :base) temps tempNumber)
+				(this :methodName)
+				newargs
+			)
+		)
+	}	
 )
 (defn fieldRead [base field]
 	{:type :fieldRead :base base :field field
+		:atomic false
+		:expand (fn [this temps tempNumber]
+			(fieldRead
+				(expandIfNotAtomic (this :base) temps tempNumber)
+				(this :field)
+			)
+		)
 	}
 )
+
+#not actuall atomic but we'll get to that later
 (defn classRef [name]
-	{:type :classRef :classname name}
+	{:type :classRef :classname name
+		:atomic true
+	}
 )
 
 #where t is a tokenizer object

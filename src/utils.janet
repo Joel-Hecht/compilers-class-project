@@ -86,3 +86,14 @@
 	(error (string "Expected " exp " but found " act " instead"))
 )
 
+#in janet, only arrays can be passed by reference
+(defn deref [ref]
+	(get ref 0)
+)
+
+#returns current value and increments
+(defn ref+ [ref]
+	(def old (get ref 0))
+	(put ref 0 (+ old 1))
+	old
+)

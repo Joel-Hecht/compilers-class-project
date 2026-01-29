@@ -37,12 +37,41 @@
 	body
 )
 
+(defn tempvar [name]
+	{:name name :temp true}
+)
+(defn realvar [name]
+	{:name name :temp false}
+)
+
 # statement 'class' definitions
 (defn assignment [name value]
-	{:type :assignment :var name :value value}
+	{	:type :assignment :var name :expr value
+		:expand (fn [this tempNumber]
+			(if ((this :expr) :atomic)
+				#change into a realvar
+				@[ (assignment (realvar (this :var)) (this :expr)) ]
+				(do
+					(def out @[])
+					(var tnumSnapShot (deref tempNumber))
+					(def tempsList @[])
+					(def expanded (:expand (this :expr) tempsList tempNumber) )
+					(each t tempsList 
+						(array/push out 
+							(assignment (tempvar tnumSnapShot) t)
+						)
+						(set tnumSnapShot (+ tnumSnapShot 1))
+					)	
+
+					(array/push out (assignment (realvar (this :var)) expanded ))
+					out
+				)
+			)
+		)
+	}
 )
 (defn fieldSet [obj field-name new]
-	{ :type :fieldSet :obj obj :field field-name :value new}
+	{ :type :fieldSet :obj obj :field field-name :expr new}
 )
 (defn run [e]
 	{:type :run :expr e}
