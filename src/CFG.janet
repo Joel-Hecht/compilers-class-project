@@ -7,27 +7,22 @@
 (import ./parser)
 
 
-#case for type
-(defn expandExpr [e]
-)
-
-#iterate through statements
-#takes in a list of statements
-(defn expand [& sts]
-
-)
-
-(defn expand-statement-group []
-
-
-)
-
-
-##takes in an ast, should expand the 
+## ast -> ast, but expands all compound expressions using temp variables
 (defn expandCompounds [ast]
 	#start at 1 because 0 reserved for throwaway commands
+	#for right now just work on body, it would help to eb able to parse a full statement group to cfg and then appy it to all classes
+
+	#(def newclasses @[])
+	#(each class (ast :classes)
+	#	(def tempNumber @[1])	
+	#	(array/push newclasses (statement/expandStatements class tempNumber))	
+	#)
+
 	(def tempNumber @[1])
-	(statement/expandStatements (ast :body) tempNumber)
+	(def body (statement/expandStatements (ast :body) tempNumber) )
+		body
+
+	#(parser/make-program newclasses (ast :vars) body)
 )	
 
 #should get macroed up using that <<- thing or whatever
