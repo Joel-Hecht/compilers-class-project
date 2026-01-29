@@ -7,10 +7,16 @@
 (use ../utils)
 (use ./parserTools)
 
+#n-ary identity that only returns the first arg
+(defn ident [x & throwaway]
+	x
+)
+
 (defn tempVariable [number]
 	{:type :temp
 	:atomic true
-	:num number}
+	:num number
+	:expand ident	}
 )
 
 (defn expandIfNotAtomic [exp temps tempNumber]
@@ -21,7 +27,6 @@
 			(tempVariable (ref+ tempNumber))
 		)
 	)	
-
 )
 
 
@@ -29,16 +34,19 @@
 (defn thisExpr []
 	{:type :thisExpr
 		:atomic true
+		:expand ident	
 	}
 )
 (defn constant [num] 
 	{ :type :constant :value num 
 		:atomic true
+		:expand ident	
 	}
 )
 (defn variable [name]
 	{ :type :variable :name name
 		:atomic true
+		:expand ident	
 	}
 )
 (defn binop [lhs op rhs]
@@ -86,6 +94,7 @@
 (defn classRef [name]
 	{:type :classRef :classname name
 		:atomic true
+		:expand ident	
 	}
 )
 
