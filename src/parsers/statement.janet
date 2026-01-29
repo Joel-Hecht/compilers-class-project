@@ -15,6 +15,15 @@
 	{:name name :temp false}
 )
 
+#inherits a temp number from a parent call
+(defn expandStatements [statements tempNumber]
+	(def body @[])
+	(each statem statements
+		(array/join body (:expand statem tempNumber))
+	)
+	body
+)
+
 #where all are statements except for the last one, which is the now simple version
 #of whatever expression we asked for
 #all created statements are assignment
@@ -114,13 +123,40 @@
 )
 
 (defn ifelse [condition ifbody elsebody]
-	{:type :ifelse :cond condition :if ifbody :else elsebody}
+	{:type :ifelse :cond condition :if ifbody :else elsebody
+		:expand (fn [this tempNumber]
+			(def l (getTempList (this :cond) tempNumber assignment true))
+			(def i (expandStatements (this :if) tempNumber))
+			(def e (expandStatements (this :else) tempNumber))
+			(array/push l
+				(ifelse (array/pop l) i e)	
+			)	
+		)
+	}
 )
 (defn ifonly [condition body]
-	{:type :ifonly :cond condition :body body}
+	{:type :ifonly :cond condition :body body
+		:expand (fn [this tempNumber]
+			(def l (getTempList (this :cond) tempNumber assignment true))
+			(def b (expandStatements (this :body) tempNumber))
+			(array/push l
+				(ifonly (array/pop l) b )	
+			)	
+		)
+	}
 )
+
+#control flow might get weird here, since temp variables will need to be reassigned every iteration (but will be declared before the if)
 (defn whileloop [condition body]
-	{:type :while :cond condition :body body}
+	{:type :while :cond condition :body body
+		:expand (fn [this tempNumber]
+			(def l (getTempList (this :cond) tempNumber assignment true))
+			(def b (expandStatements (this :body) tempNumber))
+			(array/push l
+				(whileloop (array/pop l) b )	
+			)	
+		)
+	}
 )
 
 (defn parseExp [t]
@@ -198,7 +234,7 @@
 							(def condition (parseExp t))
 							(assertType (nextt t) :colon)
 							(def body (bracketted-statements t parseStatement))
-							(while condition body)
+							(whileloop condition body)
 						)
 		:ret (ret (parseExp t))
 		:print (do
@@ -327,6 +363,10 @@ x = r
 (test-error (parseOnce `if (a + b): {
 } `)
   "Expected a statement, but instead got token rb")
+(test (parseOnce 
+`while (a + b): {
+a = b
+}`))
 (test-error (parseOnce `while: {
 x = b
 }`)
