@@ -97,3 +97,15 @@
 	(put ref 0 (+ old 1))
 	old
 )
+
+(defn tab+ [tab key]
+	(def old (get tab key))
+	(put tab key (+ old 1))
+	old
+)
+(defn dereftab [tab key]
+	(get tab key)
+)
+(defn getNextID [tab key]
+	(string key (tab+ tab key))	
+)

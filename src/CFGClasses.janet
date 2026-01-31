@@ -2,11 +2,13 @@
 
 (use ./utils)
 
+(print "used")
+
 #smallest unit of cfg representation, either a constant or an integer
 #we will abstract this away but just saying that these CFGvars are the smallest possible unit
 (defn cfgvar [name isConstant]
 	{
-		:type cfgvar
+		:type :cfgvar
 		:constant isConstant
 		:name name
 		:toStr ( fn [this]
@@ -73,11 +75,16 @@
 	{:type fail :error ERROR :branching true}
 )
 
-(defn block [statements branch]
-	{	:type :basicBlock
+(defn new-block [statements branch]
+	@{	:type :basicBlock
 		:body statements
 		:branch branch
 #should also have phi here
 	}
-
 )
+
+(defn new-block-nobranch [statements ]
+	(new-block statements -1)
+)
+
+

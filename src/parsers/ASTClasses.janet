@@ -1,13 +1,13 @@
 #!/usr/local/bin/janet
 
 (use ../utils)
-(use ../CFGClasses)
+(import ../CFGClasses :as CFGObj)
 
 (defn tempvar [name]
-	{:name name :temp true :type :variable}
+	{:name name :temp true :type :variable :atomic true}
 )
 (defn realvar [name]
-	{:name name :temp false :type :variable}
+	{:name name :temp false :type :variable :atomic true}
 )
 
 #inherits a temp number from a parent call
@@ -18,6 +18,8 @@
 	)
 	body
 )
+
+
 
 #where all are statements except for the last one, which is the now simple version
 #of whatever expression we asked for
@@ -41,7 +43,7 @@
 	# if it is not already a var
 	(if (and finalExpansion (not (expanded :atomic)))
 		(do 
-			(array/push out (assignmentF (deref tempNumber) expanded ))
+			(array/push out (assignmentF (tempvar (deref tempNumber)) expanded ))
 			(array/push out (tempvar (ref+ tempNumber)))
 		)
 		(array/push out expanded)
@@ -91,7 +93,7 @@
 	}
 )
 (defn ret [e]
-	{ :type :return :expr e 
+	{ :type :return :expr e :branching true
 		:expand (fn [this tempNumber]
 			(def l (getTempList (this :expr) tempNumber assignment true))	
 			(array/push l
@@ -100,6 +102,9 @@
 			)
 			
 			l	
+		)
+		:toCFG (fn [this reservedNext blockIDs blocks makeBlocksF]
+			(CFGObj/ret (CFGObj/toCVGVar (this :expr)) )
 		)
 	}
 )
@@ -118,7 +123,7 @@
 )
 
 (defn ifelse [condition ifbody elsebody]
-	{:type :ifelse :cond condition :if ifbody :else elsebody
+	{:type :ifelse :cond condition :if ifbody :else elsebody :branching true
 		:expand (fn [this tempNumber]
 			(def l (getTempList (this :cond) tempNumber assignment true))
 			(def i (expandStatements (this :if) tempNumber))
@@ -127,10 +132,31 @@
 				(ifelse (array/pop l) i e)	
 			)	
 		)
+		:toCFG (fn [this reservedNext blockIDs blocks makeBlocksF]
+			#requires makeBlocksF(unction) to avoid circular dependancy
+
+			#jump back at the end of instructions, brings us back to calling scope
+			(def jumpOut (CFGObj/jump reservedNext))
+
+			#continue to if if condition is true
+			(def condition (CFGObj/toCVGVar (this :cond)))
+			(def if-id (getNextID blockIDs "l"))			
+
+			#get blcoks for loop body
+			(merge-into blocks (makeBlocksF (this :if) blockIDs if-id jumpOut ))
+
+			#same for else
+			(def else-id (getNextID blockIDs "l"))			
+			(merge-into blocks (makeBlocksF (this :else) blockIDs else-id jumpOut ))
+
+			(def branch (CFGObj/iff condition if-id else-id ) )
+			#calling block should immediately jump into loophead
+			branch
+		)
 	}
 )
 (defn ifonly [condition body]
-	{:type :ifonly :cond condition :body body
+	{:type :ifonly :cond condition :body body :branching true
 		:expand (fn [this tempNumber]
 			(def l (getTempList (this :cond) tempNumber assignment true))
 			(def b (expandStatements (this :body) tempNumber))
@@ -138,18 +164,61 @@
 				(ifonly (array/pop l) b )	
 			)	
 		)
+		:toCFG (fn [this reservedNext blockIDs blocks makeBlocksF]
+			#requires makeBlocksF(unction) to avoid circular dependancy
+
+			#continue to body if condition is true
+			(def body-id (getNextID blockIDs "l"))			
+			(def condition (CFGObj/toCVGVar (this :cond)))
+			(def branch (CFGObj/iff condition body-id reservedNext ) )
+			
+			#jump back at the end of instructions
+			(def jumpAfterBody (CFGObj/jump reservedNext))
+
+			#get blcoks for loop body
+			(merge-into blocks (makeBlocksF (this :body) blockIDs body-id jumpAfterBody))
+
+			#calling block should immediately jump into loophead
+			branch
+		)
 	}
 )
 
+#after expansion, sets a "loophead" variable with all loophead statements
 #control flow might get weird here, since temp variables will need to be reassigned every iteration (but will be declared before the if)
-(defn whileloop [condition body]
-	{:type :while :cond condition :body body
+(defn whileloop [condition body &opt loophead]
+	{:type :while :cond condition :body body :branching true :loophead loophead
 		:expand (fn [this tempNumber]
 			(def l (getTempList (this :cond) tempNumber assignment true))
 			(def b (expandStatements (this :body) tempNumber))
-			(array/push l
-				(whileloop (array/pop l) b )	
-			)	
+			(def tempcond (array/pop l))	
+			@[ (whileloop tempcond b l) ] #keep loophead married here
+			#(array/push l
+			#	(whileloop (array/pop l) b )	
+			#)	
+		)
+		:toCFG (fn [this reservedNext blockIDs blocks makeBlocksF]
+			#requires makeBlocksF(unction) to avoid circular dependancy
+
+			#define loophead block
+			(def lh-name (getNextID blockIDs "loophead"))			
+			(def condition (CFGObj/toCVGVar (this :cond)))
+			
+			#continue to body if condition is true
+			(def body-id (getNextID blockIDs "body"))			
+			(def lh-branch (CFGObj/iff condition body-id reservedNext ) )
+
+			#jump back at the end of instructions
+			(def jumpBack (CFGObj/jump lh-name))
+
+			#insert loophead as block
+			(put blocks lh-name (CFGObj/new-block (this :loophead) lh-branch))
+
+			#get blcoks for loop body
+			(merge-into blocks (makeBlocksF (this :body) blockIDs body-id jumpBack))
+
+			#calling block should immediately jump into loophead
+			jumpBack
 		)
 	}
 )

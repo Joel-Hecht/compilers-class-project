@@ -3,92 +3,50 @@
 (use judge)
 #
 ##define cfg node 'classes'
+(use ./utils)
 (import ./parsers/ASTClasses)
+(use ./CFGClasses)
 (import ./parser)
 
-#smallest unit of cfg representation, either a constant or an integer
-#we will abstract this away but just saying that these CFGvars are the smallest possible unit
-(defn cfgvar [name isConstant]
-	{
-		:type cfgvar
-		:constant isConstant
-		:name name
-		:toStr ( fn [this]
-			(if (this :constant)
-				(string (this :name))
-				(string "%" (this :name))
+#to be run after exanding 
+(defn makeBlocks [statements blockIDs firstblockname endInstruction]
+	(var blocks @{})
+	(var curBlock @[])
+	(var curBlockName firstblockname)
+	(each s statements
+		(if (s :branching)	
+			(do
+				#def somethign
+				(put blocks curBlockName (new-block-nobranch curBlock ))
+
+				#reserve next block here
+				#this way we can tell everybody where we are headed after this 
+				#branch
+				(def reservedNext (getNextID blockIDs "l" ))
+				
+				(def branch-instruction (:toCFG s reservedNext blockIDs blocks makeBlocks))
+				(put 
+					(get blocks curBlockName) 
+					:branch branch-instruction
+				)
+				(set curBlock @[])
+				(set curBlockName reservedNext)
+					
 			)
-		)
-	}
-)
-
-(defn toCVGVar [astvar]
-	(when (not (astvar :atomic))
-		(error (string "tried to create a cfg variable from non atomic " (string/format "%v" astvar)))
+			(array/push curBlock s)
+		) 
 	)
-	(var constant false)
-	(var name (string (astvar :name)))
-	(when (= (astvar :type) :constant)
-	 (set constant true)
-	 (set name (astvar :value))
-	)
-	(cfgvar name constant)
+
+	#use leftover curblock in final add
+	(put blocks curBlockName (new-block curBlock endInstruction))
 )
 
-(defn assign [reg val]
-	{:type :assignment :reg reg :val val}
-)
-(defn operate [reg lval rval op]
-	{:type :operation :reg reg :l lval :r rval :op op}
-)
-(defn call [reg addr receiver args]
-	{:type :call :reg reg :addr addr :obj receiver :args args}
-)
-(defn phi [reg blocks vars]
-	{:type :phi :reg reg :blocks blocks :vars vars}
-)
-(defn pr [reg]
-	{:type :print :reg reg}
-)
-(defn getelt [reg arr i]
-	{:type :getelt :reg reg :arr arr :ind i }	
-)
-(defn setelt [reg arr i new]
-	{:type :setelt :reg reg :arr arr :ind i :new new}	
-)
-(defn load [reg base]
-	{:type :load :reg reg :base base}
-)
-(defn store [base value]
-	{:type :store :base base :value value :noReg true}	
+(defn makeMain [body]
+	(def blockID @{"l" 0 "loophead" 0 "body" 0})
+	(makeBlocks body blockID "main" (ret (cfgvar 0 true)))
 )
 
-#types of control flow
-(defn jump [blockname]
-	{:type :jump :branching true :block blockname}
-)
-(defn iff [reg i e]
-	{:type :iff :reg reg :if i :else e :branching true}
-)
-(defn ret [reg]
-	{:type :return :reg reg :branching true}
-)
-(defn fail [ERROR]
-	{:type fail :error ERROR :branching true}
-)
 
-(defn block [statements branch]
-	{	:type :basicBlock
-		:body statements
-		:branch branch
-#should also have phi here
-	}
-
-)
-
-(defn toCFGStatement [statement]
-	
-)
 
 (defn statementsToCFG [body]
 	(def blocks @{})
@@ -96,12 +54,9 @@
 	(var thisBlock @[])
 	(each s body
 		(case (s :type)
-			:assigment (do 
-				(def lhs (toCVGVar (s :var)))
-				#(if ((s :expr) :atomic)
-				#	(assign lhs (toCFGVar (s :expr)))
+			#:assigment (do (def lhs (toCVGVar (s :var))) #(if ((s :expr) :atomic) #	(assign lhs (toCFGVar (s :expr)))
 				#)
-			)
+			#)
 		)	
 	)
 )
@@ -126,14 +81,18 @@
 
 #should get macroed up using that <<- thing or whatever
 (defn convertFromAST [ast]
-	(expandCompounds ast)
+	(makeMain (expandCompounds ast))
+)
+
+(defn expandFromString [s]
+	(expandCompounds (parser/parseFromString s))
 )
 
 (defn cfgFromString [s]
 	(convertFromAST (parser/parseFromString s))
 )
 
-(test (cfgFromString 
+(test (expandFromString 
 `
 main with x, y, z:
 x = ((1 + 2) * (x + (y  + 2)))
@@ -152,8 +111,10 @@ x = ((1 + 2) * (x + (y  + 2)))
                   :type :constant
                   :value "2"}
             :type :binop}
-     :type :assignment
-     :var {:name 1 :temp true}}
+     :type :assignment    :var {:atomic true
+           :name 1
+           :temp true
+           :type :variable}}
     {:expand "<function 0x3>"
      :expr {:atomic false
             :expand "<function 0x4>"
@@ -168,7 +129,10 @@ x = ((1 + 2) * (x + (y  + 2)))
                   :value "2"}
             :type :binop}
      :type :assignment
-     :var {:name 2 :temp true}}
+     :var {:atomic true
+           :name 2
+           :temp true
+           :type :variable}}
     {:expand "<function 0x5>"
      :expr {:atomic false
             :expand "<function 0x6>"
@@ -183,7 +147,10 @@ x = ((1 + 2) * (x + (y  + 2)))
                   :type :temp}
             :type :binop}
      :type :assignment
-     :var {:name 3 :temp true}}
+     :var {:atomic true
+           :name 3
+           :temp true
+           :type :variable}}
     {:expand "<function 0x7>"
      :expr {:atomic false
             :expand "<function 0x8>"
@@ -198,9 +165,12 @@ x = ((1 + 2) * (x + (y  + 2)))
                   :type :temp}
             :type :binop}
      :type :assignment
-     :var {:name "x" :temp false}}])
+     :var {:atomic true
+           :name "x"
+           :temp false
+           :type :variable}}])
 
-(test (cfgFromString 
+(test (expandFromString 
 `
 main with x, y, z:
 x = x
@@ -213,16 +183,22 @@ y = 1
             :name "x"
             :type :variable}
      :type :assignment
-     :var {:name "x" :temp false}}
+     :var {:atomic true
+           :name "x"
+           :temp false
+           :type :variable}}
     {:expand "<function 0x2>"
      :expr {:atomic true
             :expand @ident
             :type :constant
             :value "1"}
      :type :assignment
-     :var {:name "y" :temp false}}])
+     :var {:atomic true
+           :name "y"
+           :temp false
+           :type :variable}}])
 
-(test (cfgFromString
+(test (expandFromString
 `
 main with x, y, z:
 	!(a+b).p = &(p+q).r
@@ -242,7 +218,10 @@ main with x, y, z:
                   :type :variable}
             :type :binop}
      :type :assignment
-     :var 1}
+     :var {:atomic true
+           :name 1
+           :temp true
+           :type :variable}}
     {:expand "<function 0x3>"
      :expr {:atomic false
             :expand "<function 0x4>"
@@ -257,7 +236,10 @@ main with x, y, z:
                   :type :variable}
             :type :binop}
      :type :assignment
-     :var {:name 2 :temp true}}
+     :var {:atomic true
+           :name 2
+           :temp true
+           :type :variable}}
     {:expand "<function 0x5>"
      :expr {:atomic false
             :base {:atomic true
@@ -268,11 +250,14 @@ main with x, y, z:
             :field "r"
             :type :fieldRead}
      :field "p"
-     :obj {:name 1 :temp true}
+     :obj {:atomic true
+           :name 1
+           :temp true
+           :type :variable}
      :type :fieldSet}])
 
 
-(test (cfgFromString 
+(test (expandFromString 
 `
 main with x, y, z:
 !a.f = (a + b)
@@ -299,7 +284,7 @@ main with x, y, z:
 
 
 
-(test (cfgFromString 
+(test (expandFromString 
 ` 
 main with x:
 x = (1 + 2)
@@ -320,7 +305,10 @@ _ = &(x + a).f
                   :value "2"}
             :type :binop}
      :type :assignment
-     :var {:name "x" :temp false}}
+     :var {:atomic true
+           :name "x"
+           :temp false
+           :type :variable}}
     {:expand "<function 0x3>"
      :expr {:atomic false
             :expand "<function 0x4>"
@@ -335,7 +323,10 @@ _ = &(x + a).f
                   :type :variable}
             :type :binop}
      :type :assignment
-     :var {:name 1 :temp true}}
+     :var {:atomic true
+           :name 1
+           :temp true
+           :type :variable}}
     {:expand "<function 0x5>"
      :expr {:atomic false
             :base {:atomic true
@@ -346,22 +337,27 @@ _ = &(x + a).f
             :field "f"
             :type :fieldRead}
      :type :assignment
-     :var {:name "0" :temp true}}])
+     :var {:atomic true
+           :name "0"
+           :temp true
+           :type :variable}}])
 
 
-(test (cfgFromString
+(test (expandFromString
 `
 main with x:
 return x
 `
 )
-  @[{:expand "<function 0x1>"
+  @[{:branching true
+     :expand "<function 0x2>"
      :expr {:atomic true
             :expand @ident
             :name "x"
             :type :variable}
+     :toCFG "<function 0x1>"
      :type :return}])
-(test (cfgFromString
+(test (expandFromString
 `
 main with x:
 return (1 + 2)
@@ -381,14 +377,22 @@ return (1 + 2)
                   :value "2"}
             :type :binop}
      :type :assignment
-     :var 1}
-    {:expand "<function 0x3>"
-     :expr {:name 1 :temp true}
+     :var {:atomic true
+           :name 1
+           :temp true
+           :type :variable}}
+    {:branching true
+     :expand "<function 0x4>"
+     :expr {:atomic true
+            :name 1
+            :temp true
+            :type :variable}
+     :toCFG "<function 0x3>"
      :type :return}])
 
 
 #test that branching stuff expands okay
-(test (cfgFromString
+(test (expandFromString
 `
 main with x:
 	x = 1
@@ -406,7 +410,10 @@ main with x:
             :type :constant
             :value "1"}
      :type :assignment
-     :var {:name "x" :temp false}}
+     :var {:atomic true
+           :name "x"
+           :temp false
+           :type :variable}}
     {:expand "<function 0x2>"
      :expr {:atomic false
             :expand "<function 0x3>"
@@ -421,16 +428,26 @@ main with x:
                   :value "1"}
             :type :binop}
      :type :assignment
-     :var 1}
-    {:cond {:name 1 :temp true}
-     :else @[{:expand "<function 0x8>"
+     :var {:atomic true
+           :name 1
+           :temp true
+           :type :variable}}
+    {:branching true
+     :cond {:atomic true
+            :name 1
+            :temp true
+            :type :variable}
+     :else @[{:expand "<function 0x10>"
               :expr {:atomic true
                      :classname "FOO"
                      :expand @ident
                      :type :classRef}
               :type :assignment
-              :var {:name "x" :temp false}}]
-     :expand "<function 0x9>"
+              :var {:atomic true
+                    :name "x"
+                    :temp false
+                    :type :variable}}]
+     :expand "<function 0x11>"
      :if @[{:expand "<function 0x4>"
             :expr {:atomic true
                    :expand @ident
@@ -451,19 +468,30 @@ main with x:
                          :value "3"}
                    :type :binop}
             :type :assignment
-            :var 2}
-           {:expand "<function 0x7>"
-            :expr {:name 2 :temp true}
+            :var {:atomic true
+                  :name 2
+                  :temp true
+                  :type :variable}}
+           {:branching true
+            :expand "<function 0x8>"
+            :expr {:atomic true
+                   :name 2
+                   :temp true
+                   :type :variable}
+            :toCFG "<function 0x7>"
             :type :return}]
+     :toCFG "<function 0x9>"
      :type :ifelse}
-    {:expand "<function 0x10>"
+    {:branching true
+     :expand "<function 0x13>"
      :expr {:atomic true
             :expand @ident
             :type :constant
             :value "1"}
+     :toCFG "<function 0x12>"
      :type :return}])
 
-(test (cfgFromString
+(test (expandFromString
 `
 main with x:
 	ifonly ^x.meth(1,2,(1 + 2)): {
@@ -485,7 +513,10 @@ main with x:
                   :value "2"}
             :type :binop}
      :type :assignment
-     :var {:name 1 :temp true}}
+     :var {:atomic true
+           :name 1
+           :temp true
+           :type :variable}}
     {:expand "<function 0x3>"
      :expr {:args @[{:atomic true
                      :expand @ident
@@ -508,16 +539,19 @@ main with x:
             :methodName "meth"
             :type :methodCall}
      :type :assignment
-     :var 2}
-    {:body @[{:expand "<function 0x5>"
+     :var {:atomic true
+           :name 2
+           :temp true
+           :type :variable}}
+    {:body @[{:expand "<function 0x6>"
               :expr {:atomic true
                      :expand @ident
                      :name "x"
                      :type :variable}
               :type :print}
-             {:expand "<function 0x6>"
+             {:expand "<function 0x7>"
               :expr {:atomic false
-                     :expand "<function 0x7>"
+                     :expand "<function 0x8>"
                      :lhs {:atomic true
                            :expand @ident
                            :name "x"
@@ -529,15 +563,28 @@ main with x:
                            :value "3"}
                      :type :binop}
               :type :assignment
-              :var 3}
-             {:expand "<function 0x8>"
-              :expr {:name 3 :temp true}
+              :var {:atomic true
+                    :name 3
+                    :temp true
+                    :type :variable}}
+             {:branching true
+              :expand "<function 0x10>"
+              :expr {:atomic true
+                     :name 3
+                     :temp true
+                     :type :variable}
+              :toCFG "<function 0x9>"
               :type :return}]
-     :cond {:name 2 :temp true}
-     :expand "<function 0x9>"
+     :branching true
+     :cond {:atomic true
+            :name 2
+            :temp true
+            :type :variable}
+     :expand "<function 0x11>"
+     :toCFG "<function 0x5>"
      :type :ifonly}])
 
-(test (cfgFromString
+(test (expandFromString
 `
 main with x:
 	while (x + 1): {
@@ -545,24 +592,9 @@ main with x:
 	}
 	return 1
 `)
-  @[{:expand "<function 0x1>"
-     :expr {:atomic false
-            :expand "<function 0x2>"
-            :lhs {:atomic true
-                  :expand @ident
-                  :name "x"
-                  :type :variable}
-            :op :+
-            :rhs {:atomic true
-                  :expand @ident
-                  :type :constant
-                  :value "1"}
-            :type :binop}
-     :type :assignment
-     :var 1}
-    {:body @[{:expand "<function 0x3>"
+  @[{:body @[{:expand "<function 0x4>"
               :expr {:atomic false
-                     :expand "<function 0x4>"
+                     :expand "<function 0x5>"
                      :lhs {:atomic true
                            :expand @ident
                            :name "x"
@@ -574,16 +606,321 @@ main with x:
                            :value "3"}
                      :type :binop}
               :type :assignment
-              :var 2}
-             {:expand "<function 0x5>"
-              :expr {:name 2 :temp true}
+              :var {:atomic true
+                    :name 2
+                    :temp true
+                    :type :variable}}
+             {:branching true
+              :expand "<function 0x7>"
+              :expr {:atomic true
+                     :name 2
+                     :temp true
+                     :type :variable}
+              :toCFG "<function 0x6>"
               :type :return}]
-     :cond {:name 1 :temp true}
-     :expand "<function 0x6>"
+     :branching true
+     :cond {:atomic true
+            :name 1
+            :temp true
+            :type :variable}
+     :expand "<function 0x8>"
+     :loophead @[{:expand "<function 0x2>"
+                  :expr {:atomic false
+                         :expand "<function 0x3>"
+                         :lhs {:atomic true
+                               :expand @ident
+                               :name "x"
+                               :type :variable}
+                         :op :+
+                         :rhs {:atomic true
+                               :expand @ident
+                               :type :constant
+                               :value "1"}
+                         :type :binop}
+                  :type :assignment
+                  :var {:atomic true
+                        :name 1
+                        :temp true
+                        :type :variable}}]
+     :toCFG "<function 0x1>"
      :type :while}
-    {:expand "<function 0x7>"
+    {:branching true
+     :expand "<function 0x10>"
      :expr {:atomic true
             :expand @ident
             :type :constant
             :value "1"}
+     :toCFG "<function 0x9>"
      :type :return}])
+
+(test (cfgFromString 
+`
+main with x,y,z:
+while (1 + 2): {
+	x = 1
+}
+`
+)
+  @{"body0" @{:body @[{:expand "<function 0x5>"
+                       :expr {:atomic true
+                              :expand @ident
+                              :type :constant
+                              :value "1"}
+                       :type :assignment
+                       :var {:atomic true
+                             :name "x"
+                             :temp false
+                             :type :variable}}]
+              :branch {:block "loophead0"
+                       :branching true
+                       :type :jump}
+              :type :basicBlock}
+    "l0" @{:body @[]
+           :branch {:branching true
+                    :reg {:constant true
+                          :name 0
+                          :toStr "<function 0x4>"
+                          :type :cfgvar}
+                    :type :return}
+           :type :basicBlock}
+    "loophead0" @{:body @[{:expand "<function 0x1>"
+                           :expr {:atomic false
+                                  :expand "<function 0x2>"
+                                  :lhs {:atomic true
+                                        :expand @ident
+                                        :type :constant
+                                        :value "1"}
+                                  :op :+
+                                  :rhs {:atomic true
+                                        :expand @ident
+                                        :type :constant
+                                        :value "2"}
+                                  :type :binop}
+                           :type :assignment
+                           :var {:atomic true
+                                 :name 1
+                                 :temp true
+                                 :type :variable}}]
+                  :branch {:branching true
+                           :else "l0"
+                           :if "body0"
+                           :reg {:constant false
+                                 :name "1"
+                                 :toStr "<function 0x3>"
+                                 :type :cfgvar}
+                           :type :iff}
+                  :type :basicBlock}
+    "main" @{:body @[]
+             :branch {:block "loophead0"
+                      :branching true
+                      :type :jump}
+             :type :basicBlock}})
+
+(test (cfgFromString 
+`
+main with x,y,z:
+if (a * b): {
+	a = x
+} else {
+	print(e)
+}
+return 0
+`
+)
+  @{"l0" @{:body @[]
+           :branch {:branching true
+                    :reg {:constant true
+                          :name "0"
+                          :toStr "<function 0x5>"
+                          :type :cfgvar}
+                    :type :return}
+           :type :basicBlock}
+    "l1" @{:body @[{:expand "<function 0x7>"
+                    :expr {:atomic true
+                           :expand @ident
+                           :name "x"
+                           :type :variable}
+                    :type :assignment
+                    :var {:atomic true
+                          :name "a"
+                          :temp false
+                          :type :variable}}]
+           :branch {:block "l0"
+                    :branching true
+                    :type :jump}
+           :type :basicBlock}
+    "l2" @{:body @[{:expand "<function 0x6>"
+                    :expr {:atomic true
+                           :expand @ident
+                           :name "e"
+                           :type :variable}
+                    :type :print}]
+           :branch {:block "l0"
+                    :branching true
+                    :type :jump}
+           :type :basicBlock}
+    "l3" @{:body @[]
+           :branch {:branching true
+                    :reg {:constant true
+                          :name 0
+                          :toStr "<function 0x4>"
+                          :type :cfgvar}
+                    :type :return}
+           :type :basicBlock}
+    "main" @{:body @[{:expand "<function 0x1>"
+                      :expr {:atomic false
+                             :expand "<function 0x2>"
+                             :lhs {:atomic true
+                                   :expand @ident
+                                   :name "a"
+                                   :type :variable}
+                             :op :*
+                             :rhs {:atomic true
+                                   :expand @ident
+                                   :name "b"
+                                   :type :variable}
+                             :type :binop}
+                      :type :assignment
+                      :var {:atomic true
+                            :name 1
+                            :temp true
+                            :type :variable}}]
+             :branch {:branching true
+                      :else "l2"
+                      :if "l1"
+                      :reg {:constant false
+                            :name "1"
+                            :toStr "<function 0x3>"
+                            :type :cfgvar}
+                      :type :iff}
+             :type :basicBlock}})
+
+(test (cfgFromString 
+`
+main with x,y,z:
+while d: {
+	ifonly (1 + 2): {
+		p = (1 + (3 + x))
+	}
+	r = (x + 2)
+}
+print(fart)
+`
+)
+  @{"body0" @{:body @[{:expand "<function 0x1>"
+                       :expr {:atomic false
+                              :expand "<function 0x2>"
+                              :lhs {:atomic true
+                                    :expand @ident
+                                    :type :constant
+                                    :value "1"}
+                              :op :+
+                              :rhs {:atomic true
+                                    :expand @ident
+                                    :type :constant
+                                    :value "2"}
+                              :type :binop}
+                       :type :assignment
+                       :var {:atomic true
+                             :name 1
+                             :temp true
+                             :type :variable}}]
+              :branch {:branching true
+                       :else "l1"
+                       :if "l2"
+                       :reg {:constant false
+                             :name "1"
+                             :toStr "<function 0x3>"
+                             :type :cfgvar}
+                       :type :iff}
+              :type :basicBlock}
+    "l0" @{:body @[{:expand "<function 0x5>"
+                    :expr {:atomic true
+                           :expand @ident
+                           :name "fart"
+                           :type :variable}
+                    :type :print}]
+           :branch {:branching true
+                    :reg {:constant true
+                          :name 0
+                          :toStr "<function 0x6>"
+                          :type :cfgvar}
+                    :type :return}
+           :type :basicBlock}
+    "l1" @{:body @[{:expand "<function 0x11>"
+                    :expr {:atomic false
+                           :expand "<function 0x12>"
+                           :lhs {:atomic true
+                                 :expand @ident
+                                 :name "x"
+                                 :type :variable}
+                           :op :+
+                           :rhs {:atomic true
+                                 :expand @ident
+                                 :type :constant
+                                 :value "2"}
+                           :type :binop}
+                    :type :assignment
+                    :var {:atomic true
+                          :name "r"
+                          :temp false
+                          :type :variable}}]
+           :branch {:block "loophead0"
+                    :branching true
+                    :type :jump}
+           :type :basicBlock}
+    "l2" @{:body @[{:expand "<function 0x7>"
+                    :expr {:atomic false
+                           :expand "<function 0x8>"
+                           :lhs {:atomic true
+                                 :expand @ident
+                                 :type :constant
+                                 :value "3"}
+                           :op :+
+                           :rhs {:atomic true
+                                 :expand @ident
+                                 :name "x"
+                                 :type :variable}
+                           :type :binop}
+                    :type :assignment
+                    :var {:atomic true
+                          :name 2
+                          :temp true
+                          :type :variable}}
+                   {:expand "<function 0x9>"
+                    :expr {:atomic false
+                           :expand "<function 0x10>"
+                           :lhs {:atomic true
+                                 :expand @ident
+                                 :type :constant
+                                 :value "1"}
+                           :op :+
+                           :rhs {:atomic true
+                                 :expand @ident
+                                 :num 2
+                                 :type :temp}
+                           :type :binop}
+                    :type :assignment
+                    :var {:atomic true
+                          :name "p"
+                          :temp false
+                          :type :variable}}]
+           :branch {:block "l1"
+                    :branching true
+                    :type :jump}
+           :type :basicBlock}
+    "loophead0" @{:body @[]
+                  :branch {:branching true
+                           :else "l0"
+                           :if "body0"
+                           :reg {:constant false
+                                 :name "d"
+                                 :toStr "<function 0x4>"
+                                 :type :cfgvar}
+                           :type :iff}
+                  :type :basicBlock}
+    "main" @{:body @[]
+             :branch {:block "loophead0"
+                      :branching true
+                      :type :jump}
+             :type :basicBlock}})
