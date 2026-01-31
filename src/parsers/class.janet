@@ -7,13 +7,16 @@
 (use ./parserTools)
 (use ../utils)
 
-#should be metaprogrammed but im lazy
 (defn new-method [args locals body]
 	{:type :method :args args :locals locals :body body}
 )
 
+#where methods a table of methodname : method
 (defn new-class [name fields methods]
-	{:type :class :name name :fields fields :methods methods}
+	{:type :class :name name :fields fields :methods methods
+		:fieldsInd (invertList fields)
+		:methodsInd (invertList methods)
+	}
 )
 
 #parse a class, or, if there is no class, return false

@@ -2,8 +2,6 @@
 
 (use ./utils)
 
-(print "used")
-
 #smallest unit of cfg representation, either a constant or an integer
 #we will abstract this away but just saying that these CFGvars are the smallest possible unit
 (defn cfgvar [name isConstant]
@@ -34,45 +32,45 @@
 )
 
 (defn assign [reg val]
-	{:type :assignment :reg reg :val val}
+	{:type :CFGassignment :reg reg :val val}
 )
 (defn operate [reg lval rval op]
-	{:type :operation :reg reg :l lval :r rval :op op}
+	{:type :CFGoperation :reg reg :l lval :r rval :op op}
 )
 (defn call [reg addr receiver args]
-	{:type :call :reg reg :addr addr :obj receiver :args args}
+	{:type :CFGcall :reg reg :addr addr :obj receiver :args args}
 )
 (defn phi [reg blocks vars]
-	{:type :phi :reg reg :blocks blocks :vars vars}
+	{:type :CFGphi :reg reg :blocks blocks :vars vars}
 )
 (defn pr [reg]
-	{:type :print :reg reg}
+	{:type :CFGprint :reg reg}
 )
 (defn getelt [reg arr i]
-	{:type :getelt :reg reg :arr arr :ind i }	
+	{:type :CFGgetelt :reg reg :arr arr :ind i }	
 )
 (defn setelt [reg arr i new]
-	{:type :setelt :reg reg :arr arr :ind i :new new}	
+	{:type :CFGsetelt :reg reg :arr arr :ind i :new new}	
 )
 (defn load [reg base]
-	{:type :load :reg reg :base base}
+	{:type :CFGload :reg reg :base base}
 )
 (defn store [base value]
-	{:type :store :base base :value value :noReg true}	
+	{:type :CFGstore :base base :value value :noReg true}	
 )
 
 #types of control flow
 (defn jump [blockname]
-	{:type :jump :branching true :block blockname}
+	{:type :CFGjump :branching true :block blockname}
 )
 (defn iff [reg i e]
-	{:type :iff :reg reg :if i :else e :branching true}
+	{:type :CFGiff :reg reg :if i :else e :branching true}
 )
 (defn ret [reg]
-	{:type :return :reg reg :branching true}
+	{:type :CFGreturn :reg reg :branching true}
 )
 (defn fail [ERROR]
-	{:type fail :error ERROR :branching true}
+	{:type :CFGfail :error ERROR :branching true}
 )
 
 (defn new-block [statements branch]

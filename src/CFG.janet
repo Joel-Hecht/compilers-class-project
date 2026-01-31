@@ -8,8 +8,22 @@
 (use ./CFGClasses)
 (import ./parser)
 
+
+#where data is a table of <string tablename> [array content]
+#and blocks is a giant table of <blockname> <blockcontent>
+#and entry is a list of all entry points to blocks.  
+	#main should be the LAST thing in this list
+(defn new-CFG [data methods main entry ]
+	{
+		:data data
+		:methods methods
+		:main main
+		:entry entry
+	}	
+)
+
 #to be run after exanding 
-(defn makeBlocks [statements blockIDs firstblockname endInstruction]
+(defn makeBlocks [statements blockIDs firstblockname &opt endInstruction]
 	(var blocks @{})
 	(var curBlock @[])
 	(var curBlockName firstblockname)
@@ -38,14 +52,94 @@
 	)
 
 	#use leftover curblock in final add
-	(put blocks curBlockName (new-block curBlock endInstruction))
+	(if endInstruction
+		(put blocks curBlockName (new-block curBlock endInstruction))
+		(when (not (empty? curBlock	)) #if we still have instructions, what do we even do with them?
+			(error (string "Error: No return from block starting at " firstblockname))
+		)
+	)
+	blocks
 )
 
-(defn makeMain [body]
-	(def blockID @{"l" 0 "loophead" 0 "body" 0})
-	(makeBlocks body blockID "main" (ret (cfgvar 0 true)))
+(defn makeMain [body blockIDs tempNumber]
+	(def newbody (ASTClasses/expandStatements body tempNumber) )
+	(makeBlocks newbody blockIDs "main" (ret (cfgvar 0 true)))
 )
 
+
+(defn makeMethods [classes blockIDs tempNumber entry data fieldsmap vtablmap ]
+	(def fieldslist @[])
+	(def vtablslist @[])
+	#(def vtabl-map @{})
+	#(def field-map @{})
+	(def methodBlocks @[])
+	(var vtabl-sz 0)
+	(var fields-sz 0)
+	(each c classes
+		(def vtabl-name (string "vtbl" (c :name)) )
+		(def fields-name (string "fields" (c :name)) )
+
+		(def vtabl (array/new-filled vtabl-sz 0))
+		(def fields (array/new-filled fields-sz 0))
+
+		(each field (c :fields)
+			(def index-in-class (+ 2 (get (c :fieldsInd) field)))
+			(updateMapIfNeeded fieldsmap fields field index-in-class)
+		)
+	
+		(eachp method (c :methods)
+			(def mname (get method 0))
+			#the name of the method, without the args or this attached
+			(def entryname (string mname (c :name)))
+			(array/push entry entryname)
+
+			(updateMapIfNeeded vtablmap vtabl mname entryname)
+
+			(def mobj (get method 1))
+
+			#the name of the function with args, thsi will be the block header
+			(def blockname (string entryname "(this" (startingCommas (mobj :args) ) ")")) 
+			
+			#assuming that the function returns itself, and i dont have to manage the jump back
+			(def newMethodBody (ASTClasses/expandStatements (mobj :body) tempNumber) )
+			(array/push methodBlocks
+				(makeBlocks newMethodBody blockIDs blockname )
+			)
+
+		)
+
+		(array/push fieldslist [fields-name fields])
+		(array/push vtablslist [vtabl-name vtabl])
+
+		(set vtabl-sz (length vtabl))
+		(set fields-sz (length fields))
+	)
+
+	(fillArrays vtablslist 1 vtabl-sz)
+	(fillArrays fieldslist 1 fields-sz)
+
+	(array/join data fieldslist)
+	(array/join data vtablslist)
+
+	methodBlocks
+)
+
+(defn makeAll [ast]
+	(def blockIDs @{"l" 0 "loophead" 0 "body" 0})
+	(def tempNumber @[1])
+	(def entry @[])
+	(def data @[]) #should end up being a list of tuples
+	
+	(def fieldsmap @{})
+	(def vtablmap @{})
+	(def methodBlocks (makeMethods (ast :classes) blockIDs tempNumber entry data fieldsmap vtablmap))
+
+	(def mainBlocks (makeMain (ast :body) blockIDs tempNumber))
+	(array/push entry "main")
+
+
+	(new-CFG data methodBlocks mainBlocks entry )
+)
 
 
 (defn statementsToCFG [body]
@@ -61,35 +155,24 @@
 	)
 )
 
-## ast -> ast, but expands all compound expressions using temp variables
-(defn expandCompounds [ast]
-	#start at 1 because 0 reserved for throwaway commands
-	#for right now just work on body, it would help to eb able to parse a full statement group to cfg and then appy it to all classes
 
-	#(def newclasses @[])
-	#(each class (ast :classes)
-	#	(def tempNumber @[1])	
-	#	(array/push newclasses (statement/expandStatements class tempNumber))	
-	#)
-
-	(def tempNumber @[1])
-	(def body (ASTClasses/expandStatements (ast :body) tempNumber) )
-		body
-
-	#(parser/make-program newclasses (ast :vars) body)
-)	
-
-#should get macroed up using that <<- thing or whatever
 (defn convertFromAST [ast]
-	(makeMain (expandCompounds ast))
+	(makeAll ast)
 )
 
 (defn expandFromString [s]
-	(expandCompounds (parser/parseFromString s))
+	(def ast (parser/parseFromString s))
+	(def tempNumber @[1])
+	(def body (ASTClasses/expandStatements (ast :body) tempNumber) )
+	body
 )
 
 (defn cfgFromString [s]
 	(convertFromAST (parser/parseFromString s))
+)
+
+(defn mainFromString [s]
+	(makeMain (parser/parseFromString s) @{} @[1])
 )
 
 (test (expandFromString 
@@ -653,7 +736,7 @@ main with x:
      :toCFG "<function 0x9>"
      :type :return}])
 
-(test (cfgFromString 
+(test (mainFromString 
 `
 main with x,y,z:
 while (1 + 2): {
@@ -716,7 +799,7 @@ while (1 + 2): {
                       :type :jump}
              :type :basicBlock}})
 
-(test (cfgFromString 
+(test (mainFromString 
 `
 main with x,y,z:
 if (a * b): {
@@ -795,7 +878,7 @@ return 0
                       :type :iff}
              :type :basicBlock}})
 
-(test (cfgFromString 
+(test (mainFromString 
 `
 main with x,y,z:
 while d: {
@@ -924,3 +1007,62 @@ print(fart)
                       :branching true
                       :type :jump}
              :type :basicBlock}})
+
+(test (mainFromString 
+`
+main with x,y,z:
+ifonly (1 + 2): {
+	p = (1 + (3 + x))
+}
+print(fart)
+`
+))
+
+(test (cfgFromString
+`
+class FOO [
+	fields x, y
+]
+
+main with p:
+print(1)
+`
+
+))
+
+(test (cfgFromString
+`
+class FOO [
+	fields x, y
+	method m(k) with locals:
+		k = (k + 1)
+		return 0
+]
+
+main with p:
+print(1)
+`
+
+))
+
+(test (cfgFromString
+`
+class FOO [
+	fields x, y
+	method ml(k) with locals:
+		return 0
+]
+class FOOD [
+	fields x, z
+	method m(k) with locals:
+		k = (k + 1)
+		return 0
+]
+
+main with p:
+ifonly (1 + 2): {
+	k = (1 + 2)
+}
+`
+
+))

@@ -107,5 +107,55 @@
 	(get tab key)
 )
 (defn getNextID [tab key]
-	(string key (tab+ tab key))	
+	(if (nil? (get tab key))
+		(do
+			(put tab key 0)
+			(string key 0)
+		)	
+		(string key (tab+ tab key))	
+	)
+)
+
+(defn invertList [l]
+	(def m @{})
+	(eachp p l
+		(put m (get p 1) (get p 0))
+	)
+	m
+)
+
+#make update a single array that keeps references from a map
+#where m is a map of keys to ints
+#and l is a list, where l[m[key]] should equal val
+#add a new key/value, chceckign first if they exist, and if not appending them
+(defn updateMapIfNeeded [m l key newval]
+			(def mapval (get m key))
+			(if (nil? mapval)
+				(do
+					#tell future l that we already have an index for that name
+					(def newMapIndex (length l))
+					(array/push l newval) #this will be that index
+					(put m key newMapIndex)
+
+				)
+				(put l mapval newval )
+			)
+)
+
+(defn startingCommas [l]
+	(def k @[])
+	(each i l
+		(array/push k (string "," i))
+	)
+	(string/join k)
+)
+
+(defn fillArrays [l ind len]
+	(each i l
+		(def diff (- len (length (get i ind) )))
+		(def extras (array/new-filled diff 0))
+		(array/join (get i ind) extras)
+		
+	)	
+
 )
